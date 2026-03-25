@@ -15,7 +15,7 @@ The logic is very simple with the minimum lines of code possible.
 ## Technologies Used
 
 - HTML
-- CSS [style/Presentation]
+- CSS [Style/Presentation]
 - Javascript [Logic/Working of calculator]
 
 ## License
