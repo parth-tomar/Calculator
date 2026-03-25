@@ -7,23 +7,23 @@
   <br>
 </p>
 
-## About
+## About:
 
 This is a simple calculator functionality achieved using Javascript.
 The logic is very simple with the minimum lines of code possible.
 
-## Technologies Used
+## Technologies Used:
 
 - HTML
-- CSS [style/Presentation]
+- CSS [Style/Presentation]
 - Javascript [Logic/Working of calculator]
 
-## License
+## License:
 
 The code is released under the [MIT](https://github.com/ItsShaded/Calculator/blob/main/LICENSE)
 license, while the rights to any art assets from 3rd parties belong to
 their respective owners.
 
-## Preview
+## Preview:
  
 https://shaded-calculator.netlify.app/
