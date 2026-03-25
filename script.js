@@ -15,87 +15,209 @@ function ensureAudio() {
 }
 
 /**
- * Synthesise a short pitched click / tone.
- * @param {number} freq   - base frequency in Hz
- * @param {string} type   - oscillator type
- * @param {number} dur    - duration in seconds
- * @param {number} vol    - peak gain (0-1)
- * @param {number} detune - pitch detune in cents
+ * Glass resonator — sine + detuned sine layered, long airy tail.
+ * Mimics a finger tapping a crystal glass.
+ * @param {number} freq  - fundamental frequency Hz
+ * @param {number} vol   - peak gain
+ * @param {number} tail  - decay length in seconds
  */
-function playTone(freq, type = 'sine', dur = 0.08, vol = 0.18, detune = 0) {
+function glassRing(freq, vol = 0.13, tail = 0.55) {
   ensureAudio();
-  const osc = ctx.createOscillator();
-  const gain = ctx.createGain();
+  const t = ctx.currentTime;
 
-  osc.type = type;
-  osc.frequency.setValueAtTime(freq, ctx.currentTime);
-  if (detune) osc.detune.setValueAtTime(detune, ctx.currentTime);
+  // Fundamental
+  const osc1 = ctx.createOscillator();
+  osc1.type = 'sine';
+  osc1.frequency.setValueAtTime(freq, t);
 
-  gain.gain.setValueAtTime(0, ctx.currentTime);
-  gain.gain.linearRampToValueAtTime(vol, ctx.currentTime + 0.008);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + dur);
+  // Slightly detuned overtone — creates shimmer/chorus
+  const osc2 = ctx.createOscillator();
+  osc2.type = 'sine';
+  osc2.frequency.setValueAtTime(freq * 2.756, t); // non-integer partial → glassy inharmonicity
 
-  osc.connect(gain);
-  gain.connect(ctx.destination);
+  // Soft sub-harmonic body
+  const osc3 = ctx.createOscillator();
+  osc3.type = 'sine';
+  osc3.frequency.setValueAtTime(freq * 0.502, t);
 
-  osc.start(ctx.currentTime);
-  osc.stop(ctx.currentTime + dur + 0.01);
-}
+  // Highpass to keep it airy, not boomy
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 320;
 
-/** Soft number key tap */
-function soundNum() {
-  playTone(600 + Math.random() * 80, 'triangle', 0.07, 0.14);
-}
-
-/** Warm operator click */
-function soundOp() {
-  playTone(480, 'sine', 0.12, 0.18, -20);
-  setTimeout(() => playTone(720, 'sine', 0.06, 0.08, 10), 30);
-}
-
-/** Satisfying equals chime — two-tone */
-function soundEquals() {
-  playTone(660, 'sine', 0.22, 0.22);
-  setTimeout(() => playTone(990, 'sine', 0.16, 0.14), 80);
-  setTimeout(() => playTone(1320, 'sine', 0.10, 0.09), 160);
-}
-
-/** Whoosh-style clear */
-function soundClear() {
-  ensureAudio();
-  const buf = ctx.createBuffer(1, ctx.sampleRate * 0.15, ctx.sampleRate);
-  const data = buf.getChannelData(0);
-  for (let i = 0; i < data.length; i++) {
-    data[i] = (Math.random() * 2 - 1) * (1 - i / data.length);
+  // Reverb-like tail via convolution on a short impulse buffer
+  const reverbLen = Math.floor(ctx.sampleRate * 0.4);
+  const reverbBuf = ctx.createBuffer(2, reverbLen, ctx.sampleRate);
+  for (let ch = 0; ch < 2; ch++) {
+    const d = reverbBuf.getChannelData(ch);
+    for (let i = 0; i < reverbLen; i++) {
+      d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / reverbLen, 3.5);
+    }
   }
+  const conv = ctx.createConvolver();
+  conv.buffer = reverbBuf;
+
+  // Gains
+  const g1 = ctx.createGain();
+  const g2 = ctx.createGain();
+  const g3 = ctx.createGain();
+  const masterGain = ctx.createGain();
+
+  g1.gain.setValueAtTime(vol,       t);
+  g1.gain.exponentialRampToValueAtTime(0.0001, t + tail);
+
+  g2.gain.setValueAtTime(vol * 0.35, t);
+  g2.gain.exponentialRampToValueAtTime(0.0001, t + tail * 0.7);
+
+  g3.gain.setValueAtTime(vol * 0.18, t);
+  g3.gain.exponentialRampToValueAtTime(0.0001, t + tail * 0.5);
+
+  masterGain.gain.setValueAtTime(0,    t);
+  masterGain.gain.linearRampToValueAtTime(1, t + 0.004); // instant attack
+
+  // Wet reverb mix
+  const wetGain = ctx.createGain();
+  wetGain.gain.value = 0.18;
+
+  osc1.connect(g1); g1.connect(hp);
+  osc2.connect(g2); g2.connect(hp);
+  osc3.connect(g3); g3.connect(hp);
+
+  hp.connect(masterGain);
+  masterGain.connect(ctx.destination);
+
+  // Light reverb send
+  hp.connect(conv);
+  conv.connect(wetGain);
+  wetGain.connect(ctx.destination);
+
+  const stop = t + tail + 0.05;
+  osc1.start(t); osc1.stop(stop);
+  osc2.start(t); osc2.stop(stop);
+  osc3.start(t); osc3.stop(stop);
+}
+
+/**
+ * Frosted-glass tap — pink noise burst through a narrow bandpass,
+ * simulating a muted finger tap on frosted glass.
+ */
+function glassTap(centerFreq = 2200, vol = 0.15, dur = 0.06) {
+  ensureAudio();
+  const t = ctx.currentTime;
+  const bufLen = Math.floor(ctx.sampleRate * dur);
+  const buf = ctx.createBuffer(1, bufLen, ctx.sampleRate);
+  const data = buf.getChannelData(0);
+
+  // Pink-ish noise (weighted random walk)
+  let b0 = 0, b1 = 0, b2 = 0;
+  for (let i = 0; i < bufLen; i++) {
+    const w = Math.random() * 2 - 1;
+    b0 = 0.99886 * b0 + w * 0.0555179;
+    b1 = 0.99332 * b1 + w * 0.0750759;
+    b2 = 0.96900 * b2 + w * 0.1538520;
+    data[i] = (b0 + b1 + b2 + w * 0.5362) / 3.5;
+  }
+
   const src = ctx.createBufferSource();
   src.buffer = buf;
 
-  const filter = ctx.createBiquadFilter();
-  filter.type = 'bandpass';
-  filter.frequency.setValueAtTime(1800, ctx.currentTime);
-  filter.frequency.exponentialRampToValueAtTime(400, ctx.currentTime + 0.14);
-  filter.Q.value = 0.8;
+  // Tight bandpass — glass resonance peak
+  const bp = ctx.createBiquadFilter();
+  bp.type = 'bandpass';
+  bp.frequency.value = centerFreq;
+  bp.Q.value = 4.5;
+
+  // Second resonance peak (body)
+  const bp2 = ctx.createBiquadFilter();
+  bp2.type = 'bandpass';
+  bp2.frequency.value = centerFreq * 0.48;
+  bp2.Q.value = 3.0;
 
   const gain = ctx.createGain();
-  gain.gain.setValueAtTime(0.22, ctx.currentTime);
-  gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.15);
+  gain.gain.setValueAtTime(vol, t);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + dur);
 
-  src.connect(filter);
-  filter.connect(gain);
+  src.connect(bp);  bp.connect(gain);
+  src.connect(bp2); bp2.connect(gain);
   gain.connect(ctx.destination);
-  src.start();
+  src.start(t);
 }
 
-/** Soft decimal/function click */
+// ── Public sound functions ───────────────────────────────────────────────────
+
+/** Number tap — light crystal ping with slight pitch variation */
+function soundNum() {
+  const notes = [1047, 1175, 1319, 1109, 988]; // C6 D6 E6 D6 B5
+  const freq = notes[Math.floor(Math.random() * notes.length)];
+  glassRing(freq, 0.11, 0.42);
+  glassTap(freq * 2.1, 0.08, 0.04);
+}
+
+/** Operator — lower, rounder glass resonance */
+function soundOp() {
+  glassRing(784, 0.13, 0.52);   // G5
+  glassTap(1600, 0.10, 0.05);
+}
+
+/** Equals — ascending crystal chord: G5 → B5 → D6 */
+function soundEquals() {
+  glassRing(784,  0.14, 0.70);
+  setTimeout(() => glassRing(988,  0.12, 0.65), 90);
+  setTimeout(() => glassRing(1175, 0.10, 0.80), 185);
+  glassTap(2400, 0.09, 0.06);
+}
+
+/** Clear — descending glass sweep + airy noise fade */
+function soundClear() {
+  ensureAudio();
+  const t = ctx.currentTime;
+
+  // Falling pitch sweep
+  const osc = ctx.createOscillator();
+  osc.type = 'sine';
+  osc.frequency.setValueAtTime(1400, t);
+  osc.frequency.exponentialRampToValueAtTime(320, t + 0.28);
+
+  const gain = ctx.createGain();
+  gain.gain.setValueAtTime(0.14, t);
+  gain.gain.exponentialRampToValueAtTime(0.0001, t + 0.30);
+
+  // Airy noise layer
+  const nLen = Math.floor(ctx.sampleRate * 0.22);
+  const nBuf = ctx.createBuffer(1, nLen, ctx.sampleRate);
+  const nd   = nBuf.getChannelData(0);
+  for (let i = 0; i < nLen; i++) nd[i] = (Math.random() * 2 - 1) * (1 - i / nLen);
+
+  const nSrc = ctx.createBufferSource();
+  nSrc.buffer = nBuf;
+
+  const hp = ctx.createBiquadFilter();
+  hp.type = 'highpass';
+  hp.frequency.value = 3000;
+
+  const nGain = ctx.createGain();
+  nGain.gain.setValueAtTime(0.06, t);
+  nGain.gain.exponentialRampToValueAtTime(0.0001, t + 0.22);
+
+  osc.connect(gain);   gain.connect(ctx.destination);
+  nSrc.connect(hp);    hp.connect(nGain);   nGain.connect(ctx.destination);
+
+  osc.start(t); osc.stop(t + 0.32);
+  nSrc.start(t);
+}
+
+/** Function key (%, +/−, decimal) — delicate high tap */
 function soundClick() {
-  playTone(520, 'triangle', 0.06, 0.12);
+  glassRing(1568, 0.09, 0.32); // G6 — bright but subtle
+  glassTap(3000, 0.06, 0.03);
 }
 
-/** Error buzz */
+/** Error — dissonant glass cluster */
 function soundError() {
-  playTone(180, 'sawtooth', 0.18, 0.15);
-  setTimeout(() => playTone(150, 'sawtooth', 0.12, 0.10), 100);
+  ensureAudio();
+  glassRing(523,  0.12, 0.35); // C5
+  glassRing(554,  0.10, 0.30); // C#5 — minor 2nd dissonance
+  setTimeout(() => glassRing(440, 0.08, 0.40), 120); // A4 — unsettled landing
 }
 
 const SOUNDS = {
