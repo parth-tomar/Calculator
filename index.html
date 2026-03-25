@@ -1,47 +1,74 @@
-<html>
-	<head>
-        <meta charset="UTF-8">
-        <meta http-equiv="X-UA-Compatible" content="ie=edge">      
-		<link rel="stylesheet" type="text/css" href="style.css">
-		<link href="https://fonts.googleapis.com/css?family=Open+Sans:600,700" rel="stylesheet">
-		<title>Shaded's Calculator</title>
-	</head>
-	<body>
-		<div id="container">
-			<div id="calculator">
-				<div id="result">
-					<div id="history">
-						<p id="history-value"></p>
-					</div>
-					<div id="output">
-						<p id="output-value"></p>
-					</div>
-				</div>
-				<div id="keyboard">
-					<button class="operator" id="clear">C</button>
-					<button class="operator" id="backspace">CE</button>
-					<button class="operator" id="%">%</button>
-					<button class="operator" id="/">&#247;</button>
-					<button class="number" id="7">7</button>
-					<button class="number" id="8">8</button>
-					<button class="number" id="9">9</button>
-					<button class="operator" id="*">&times;</button>
-					<button class="number" id="4">4</button>
-					<button class="number" id="5">5</button>
-					<button class="number" id="6">6</button>
-					<button class="operator" id="-">-</button>
-					<button class="number" id="1">1</button>
-					<button class="number" id="2">2</button>
-					<button class="number" id="3">3</button>
-					<button class="operator" id="+">+</button>
-					<button class="empty" id="empty"></button>
-					<button class="number" id="0">0</button>
-					<button class="empty" id="empty"></button>
-					<button class="operator" id="=">=</button>
-				</div>
-			</div>
-		</div>
-          <h2><center>Shaded's Calculator</center></h2>    
-          <script src="script.js"></script>
-    </body>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Glass Calculator</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600&family=Space+Mono:wght@400;700&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Animated background orbs -->
+  <div class="bg-orbs">
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+    <div class="orb orb-3"></div>
+    <div class="orb orb-4"></div>
+  </div>
+
+  <!-- Ripple container for click effects -->
+  <div id="ripple-container"></div>
+
+  <!-- Calculator -->
+  <div class="calculator" id="calculator">
+
+    <!-- Display -->
+    <div class="display">
+      <div class="display-inner">
+        <div class="expression" id="expression"></div>
+        <div class="result" id="result">0</div>
+      </div>
+      <div class="display-shine"></div>
+    </div>
+
+    <!-- Buttons Grid -->
+    <div class="buttons">
+
+      <!-- Row 1 -->
+      <button class="btn btn-func" data-action="clear" data-sound="clear">AC</button>
+      <button class="btn btn-func" data-action="sign" data-sound="click">+/−</button>
+      <button class="btn btn-func" data-action="percent" data-sound="click">%</button>
+      <button class="btn btn-op" data-action="operator" data-value="÷" data-sound="op">÷</button>
+
+      <!-- Row 2 -->
+      <button class="btn btn-num" data-action="number" data-value="7" data-sound="num">7</button>
+      <button class="btn btn-num" data-action="number" data-value="8" data-sound="num">8</button>
+      <button class="btn btn-num" data-action="number" data-value="9" data-sound="num">9</button>
+      <button class="btn btn-op" data-action="operator" data-value="×" data-sound="op">×</button>
+
+      <!-- Row 3 -->
+      <button class="btn btn-num" data-action="number" data-value="4" data-sound="num">4</button>
+      <button class="btn btn-num" data-action="number" data-value="5" data-sound="num">5</button>
+      <button class="btn btn-num" data-action="number" data-value="6" data-sound="num">6</button>
+      <button class="btn btn-op" data-action="operator" data-value="−" data-sound="op">−</button>
+
+      <!-- Row 4 -->
+      <button class="btn btn-num" data-action="number" data-value="1" data-sound="num">1</button>
+      <button class="btn btn-num" data-action="number" data-value="2" data-sound="num">2</button>
+      <button class="btn btn-num" data-action="number" data-value="3" data-sound="num">3</button>
+      <button class="btn btn-op" data-action="operator" data-value="+" data-sound="op">+</button>
+
+      <!-- Row 5 -->
+      <button class="btn btn-num btn-zero" data-action="number" data-value="0" data-sound="num">0</button>
+      <button class="btn btn-num" data-action="decimal" data-sound="click">.</button>
+      <button class="btn btn-eq" data-action="equals" data-sound="equals">=</button>
+
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
 </html>
